@@ -593,6 +593,8 @@ def server(input, output, session):
         axes[0].plot(time_s, acc_x, label='Acc X')
         axes[0].plot(time_s, acc_y, label='Acc Y')
         axes[0].plot(time_s, acc_z, label='Acc Z')
+        axes[0].axvline(x=time_s[start_index], color='k', linestyle='--', label='Start')
+        axes[0].axvline(x=time_s[end_index], color='dimgray', linestyle='--', label='End')
 
         axes[0].set_title(
             'Accelerometer Signals'
@@ -604,6 +606,8 @@ def server(input, output, session):
         axes[1].plot(time_s, gyro_x, label='Gyro X')
         axes[1].plot(time_s, gyro_y, label='Gyro Y')
         axes[1].plot(time_s, gyro_z, label='Gyro Z')
+        axes[1].axvline(x=time_s[start_index], color='k', linestyle='--', label='Start')
+        axes[1].axvline(x=time_s[end_index], color='dimgray', linestyle='--', label='End')
 
         axes[1].set_title(
             'Gyroscope Signals'

@@ -1,0 +1,8 @@
+shiny
+numpy
+matplotlib
+pandas
+PyWavelets
+scipy
+scikit-learn
+nolds

@@ -47,39 +47,6 @@ warnings.filterwarnings(
 
 app_ui = ui.page_sidebar(
 
-    ui.head_content(
-        ui.tags.style("""
-        .progress-container {
-            margin: 10px 0;
-            display: none;
-        }
-        .progress-container.visible {
-            display: block;
-        }
-        .progress-bar-wrap {
-            background: #e9ecef;
-            border-radius: 6px;
-            height: 20px;
-            overflow: hidden;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #0d6efd, #0a58ca);
-            border-radius: 6px;
-            transition: width 0.3s ease;
-        }
-        .progress-label {
-            font-size: 0.8em;
-            color: #555;
-            margin-top: 4px;
-            min-height: 1.2em;
-        }
-        .sidebar-section {
-            margin-bottom: 8px;
-        }
-        """)
-    ),
-
     ui.sidebar(
 
         ui.div(
@@ -156,6 +123,39 @@ app_ui = ui.page_sidebar(
         ui.output_ui("report_download_ui"),
 
         width=300
+    ),    
+
+    ui.head_content(
+        ui.tags.style("""
+        .progress-container {
+            margin: 10px 0;
+            display: none;
+        }
+        .progress-container.visible {
+            display: block;
+        }
+        .progress-bar-wrap {
+            background: #e9ecef;
+            border-radius: 6px;
+            height: 20px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0d6efd, #0a58ca);
+            border-radius: 6px;
+            transition: width 0.3s ease;
+        }
+        .progress-label {
+            font-size: 0.8em;
+            color: #555;
+            margin-top: 4px;
+            min-height: 1.2em;
+        }
+        .sidebar-section {
+            margin-bottom: 8px;
+        }
+        """)
     ),
 
     ui.navset_card_tab(

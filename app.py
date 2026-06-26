@@ -260,9 +260,6 @@ def server(input, output, session):
                 cv_step_time = np.nan
                 stride_freq = 1.0
 
-            # =================================================
-            # STEP MAGNITUDES
-            # =================================================
 
             step_total_acc_magnitudes = []
             step_total_gyro_magnitudes = []
@@ -324,10 +321,7 @@ def server(input, output, session):
                 Acc_magnit_mean = np.nan
                 Gyro_magnit_mean = np.nan
 
-            # =================================================
-            # LOWPASS FILTER
-            # =================================================
-
+            
             cutoff = input.cutoff()
 
             def butter_lowpass_filter(
@@ -377,9 +371,6 @@ def server(input, output, session):
                 )
             )
 
-            # =================================================
-            # GAIT METRICS
-            # =================================================
 
             gait_dataX = calculate_gait_metrics(
                 acc_x_series,
@@ -1184,13 +1175,16 @@ def calculate_gait_metrics(
         )
     )
 
-    gait_data[f'HReo_{axis}'] = (
-        HR_even_odd(
-            acc_series.values,
-            fs,
-            stride_freq
-        )
+    hreo_val = HR_even_odd(
+        acc_series.values,
+        fs,
+        stride_freq
     )
+    
+    if axis.lower() == 'x':
+        gait_data[f'HReo_{axis}'] = (1 / hreo_val) if hreo_val != 0 else np.nan
+    else:
+        gait_data[f'HReo_{axis}'] = hreo_val
 
     gait_data[f'RMS_{axis}'] = (
         root_mean_square(
@@ -1219,7 +1213,6 @@ def calculate_gait_metrics(
     )
 
     return gait_data
-
 
 def calculate_lyapunov(
     time_series,

@@ -661,7 +661,19 @@ def calculate_lyapunov(time_series, fs, step_time):
 # ─────────────────────────────────────────────
 # PDF REPORT GENERATION
 # ─────────────────────────────────────────────
-def fig_to_image_obj(fig, dpi=120):
+
+# Helvetica is one of the 14 standard PDF fonts — always available without embedding.
+# Aptos (Microsoft) is not available on this system.
+FONT_REGULAR = 'Helvetica'
+FONT_BOLD    = 'Helvetica-Bold'
+BLUE         = colors.HexColor('#1a56db')
+DARK         = colors.HexColor('#1a1a2e')
+GREY_LIGHT   = colors.HexColor('#f0f4ff')
+GREY_ROW     = colors.HexColor('#f8f9fa')
+GREY_GRID    = colors.HexColor('#dee2e6')
+GREY_TEXT    = colors.HexColor('#555555')
+
+def fig_to_image_obj(fig, dpi=150):
     buf = io.BytesIO()
     fig.savefig(buf, format='png', dpi=dpi, bbox_inches='tight')
     buf.seek(0)
@@ -673,136 +685,200 @@ def generate_pdf_report(results):
     pdf_path = tmp.name; tmp.close()
 
     PAGE_W, PAGE_H = A4
+    MARGIN_H = 1.8 * cm
+    MARGIN_V = 1.8 * cm
+    avail_w  = PAGE_W - 2 * MARGIN_H
+
     doc = SimpleDocTemplate(
         pdf_path, pagesize=A4,
-        leftMargin=2*cm, rightMargin=2*cm,
-        topMargin=2.0*cm, bottomMargin=1.5*cm   # reduced margins
+        leftMargin=MARGIN_H, rightMargin=MARGIN_H,
+        topMargin=MARGIN_V,  bottomMargin=MARGIN_V,
     )
-    styles = getSampleStyleSheet()
 
-    title_style = ParagraphStyle('ReportTitle', parent=styles['Title'],
-        fontSize=18, spaceAfter=4, textColor=colors.HexColor('#1a1a2e'), alignment=TA_CENTER)
-    subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'],
-        fontSize=9, textColor=colors.grey, alignment=TA_CENTER, spaceAfter=8)
-    section_style = ParagraphStyle('SectionTitle', parent=styles['Heading1'],
-        fontSize=11, textColor=colors.HexColor('#0d6efd'), spaceBefore=6, spaceAfter=3)
-    # Smaller font for results tables (point 5)
-    metric_label_style = ParagraphStyle('MetricLabel', parent=styles['Normal'],
-        fontSize=7.5, textColor=colors.HexColor('#444'))
-    metric_val_style = ParagraphStyle('MetricVal', parent=styles['Normal'],
-        fontSize=7.5, textColor=colors.black)
-    caption_style = ParagraphStyle('Caption', parent=styles['Normal'],
-        fontSize=7, textColor=colors.grey, alignment=TA_CENTER, spaceBefore=1, spaceAfter=3)
+    # ── Style definitions (all Helvetica) ───────────────────────────
+    title_style = ParagraphStyle('RTitle',
+        fontName=FONT_BOLD,    fontSize=20, leading=24,
+        textColor=DARK,        alignment=TA_CENTER, spaceAfter=3)
+    subtitle_style = ParagraphStyle('RSub',
+        fontName=FONT_REGULAR, fontSize=10, leading=13,
+        textColor=GREY_TEXT,   alignment=TA_CENTER, spaceAfter=10)
+    section_style = ParagraphStyle('RSec',
+        fontName=FONT_BOLD,    fontSize=11, leading=14,
+        textColor=BLUE,        spaceBefore=10, spaceAfter=4)
+    caption_style = ParagraphStyle('RCap',
+        fontName=FONT_REGULAR, fontSize=7.5, leading=10,
+        textColor=GREY_TEXT,   alignment=TA_CENTER, spaceBefore=2, spaceAfter=6)
+    metric_label_style = ParagraphStyle('RLabel',
+        fontName=FONT_REGULAR, fontSize=9, leading=11,
+        textColor=colors.HexColor('#333333'))
+    metric_val_style = ParagraphStyle('RVal',
+        fontName=FONT_BOLD,    fontSize=9, leading=11,
+        textColor=colors.black)
+    footer_style = ParagraphStyle('RFooter',
+        fontName=FONT_REGULAR, fontSize=7, leading=9,
+        textColor=GREY_TEXT,   alignment=TA_CENTER)
 
-    story = []
-    avail_w = PAGE_W - 4*cm
-
-    def metrics_table(rows):
-        table_data = [[Paragraph(l, metric_label_style), Paragraph(str(v), metric_val_style)] for l, v in rows]
-        t = Table(table_data, colWidths=[avail_w * 0.65, avail_w * 0.35])
-        t.setStyle(TableStyle([
-            ('BACKGROUND',   (0,0),(-1,0), colors.HexColor('#f0f4ff')),
-            ('ROWBACKGROUNDS',(0,0),(-1,-1),[colors.HexColor('#f8f9fa'), colors.white]),
-            ('GRID',         (0,0),(-1,-1), 0.4, colors.HexColor('#dee2e6')),
-            ('FONTSIZE',     (0,0),(-1,-1), 7.5),
-            ('LEFTPADDING',  (0,0),(-1,-1), 5),
-            ('RIGHTPADDING', (0,0),(-1,-1), 5),
-            ('TOPPADDING',   (0,0),(-1,-1), 3),
-            ('BOTTOMPADDING',(0,0),(-1,-1), 3),
-            ('ALIGN',        (1,0),(1,-1), 'RIGHT'),
-        ]))
+    # ── Helper: 2-column metrics table ───────────────────────────────
+    def metrics_table(rows, header=None):
+        data = []
+        if header:
+            data.append([
+                Paragraph(header, ParagraphStyle('RHdr', fontName=FONT_BOLD,
+                    fontSize=9, leading=11, textColor=colors.white)),
+                Paragraph('', metric_val_style)
+            ])
+        for label, value in rows:
+            data.append([
+                Paragraph(label, metric_label_style),
+                Paragraph(str(value), metric_val_style)
+            ])
+        col_w = [avail_w * 0.68, avail_w * 0.32]
+        t = Table(data, colWidths=col_w)
+        style_cmds = [
+            ('ROWBACKGROUNDS', (0, 0 if not header else 1), (-1, -1),
+             [GREY_ROW, colors.white]),
+            ('GRID',          (0, 0), (-1, -1), 0.4, GREY_GRID),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 7),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 7),
+            ('TOPPADDING',    (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('ALIGN',         (1, 0), (1, -1), 'RIGHT'),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ]
+        if header:
+            style_cmds += [
+                ('BACKGROUND',  (0, 0), (-1, 0), BLUE),
+                ('SPAN',        (0, 0), (-1, 0)),
+                ('ALIGN',       (0, 0), (-1, 0), 'LEFT'),
+            ]
+        t.setStyle(TableStyle(style_cmds))
         return t
 
-    # Title
-    story.append(Spacer(1, 0.2*cm))
+    story = []
+
+    # ══════════════════════════════════════════
+    # PAGE 1 — Title + 3 graphs
+    # ══════════════════════════════════════════
+    story.append(Spacer(1, 0.3 * cm))
     story.append(Paragraph("Gait Analysis Report", title_style))
     story.append(Paragraph("IMU-based Walking Assessment", subtitle_style))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0d6efd'), spaceAfter=6))
+    story.append(HRFlowable(width="100%", thickness=1.5,
+                             color=BLUE, spaceAfter=8))
 
-    (time_s, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, start_index, end_index) = results['raw_data']
+    (time_s, acc_x, acc_y, acc_z,
+     gyro_x, gyro_y, gyro_z,
+     start_index, end_index) = results['raw_data']
+    time_filt    = results['filtered_data'][0]
+    Tot_acc_magn = results['Tot_acc_magn']
 
-    # ── Figure 1: Accelerometer (reduced height) ─────────────────────
+    # Each figure gets roughly equal share of the remaining page height.
+    # A4 usable height ≈ 29.7 - 2×1.8 = 26.1 cm; minus title block ≈ 3 cm → ~23 cm for 3 figs.
+    # figsize width=8 in, height chosen so aspect ratio fills page width nicely.
+    FIG_H = 2.8   # inches per figure in matplotlib
+    IMG_H = avail_w * FIG_H / 8  # proportional height in ReportLab units
+
+    # ── Fig 1: Accelerometer ─────────────────────────────────────────
     story.append(Paragraph("1. Accelerometer Signals", section_style))
-    fig_acc, ax_acc = plt.subplots(figsize=(8, 2.2))
-    ax_acc.plot(time_s, acc_x, label='Acc X')
-    ax_acc.plot(time_s, acc_y, label='Acc Y')
-    ax_acc.plot(time_s, acc_z, label='Acc Z')
-    ax_acc.axvline(x=time_s.iloc[start_index], color='k',       linestyle='--', label='Start', linewidth=0.9)
-    ax_acc.axvline(x=time_s.iloc[end_index],   color='dimgray', linestyle='--', label='End',   linewidth=0.9)
-    ax_acc.set_xlabel('Time (s)', fontsize=8); ax_acc.set_ylabel('m/s²', fontsize=8)
-    ax_acc.tick_params(labelsize=7); ax_acc.legend(fontsize=7); ax_acc.grid(True, alpha=0.4)
-    plt.tight_layout()
-    buf_acc = fig_to_image_obj(fig_acc)
-    story.append(Image(buf_acc, width=avail_w, height=avail_w * 2.2/8))
-    story.append(Paragraph("Figure 1 – Raw accelerometer signals with analysis window delimiters.", caption_style))
+    fig1, ax1 = plt.subplots(figsize=(8, FIG_H))
+    ax1.plot(time_s, acc_x, label='Acc X', linewidth=0.9)
+    ax1.plot(time_s, acc_y, label='Acc Y', linewidth=0.9)
+    ax1.plot(time_s, acc_z, label='Acc Z', linewidth=0.9)
+    ax1.axvline(x=time_s.iloc[start_index], color='k',       linestyle='--', linewidth=0.8, label='Start')
+    ax1.axvline(x=time_s.iloc[end_index],   color='dimgray', linestyle='--', linewidth=0.8, label='End')
+    ax1.set_xlabel('Time (s)', fontsize=8)
+    ax1.set_ylabel('m/s²', fontsize=8)
+    ax1.tick_params(labelsize=7)
+    ax1.legend(fontsize=7, ncol=5, loc='upper right')
+    ax1.grid(True, alpha=0.35)
+    plt.tight_layout(pad=0.5)
+    story.append(Image(fig_to_image_obj(fig1), width=avail_w, height=IMG_H))
+    story.append(Paragraph(
+        "Figure 1 – Raw accelerometer signals (X, Y, Z axes) with analysis window boundaries.",
+        caption_style))
 
-    # ── Figure 2: Gyroscope (reduced height) ─────────────────────────
+    # ── Fig 2: Gyroscope ─────────────────────────────────────────────
     story.append(Paragraph("2. Gyroscope Signals", section_style))
-    fig_gyro, ax_gyro = plt.subplots(figsize=(8, 2.2))
-    ax_gyro.plot(time_s, gyro_x, label='Gyro X')
-    ax_gyro.plot(time_s, gyro_y, label='Gyro Y')
-    ax_gyro.plot(time_s, gyro_z, label='Gyro Z')
-    ax_gyro.axvline(x=time_s.iloc[start_index], color='k',       linestyle='--', label='Start', linewidth=0.9)
-    ax_gyro.axvline(x=time_s.iloc[end_index],   color='dimgray', linestyle='--', label='End',   linewidth=0.9)
-    ax_gyro.set_xlabel('Time (s)', fontsize=8); ax_gyro.set_ylabel('rad/s', fontsize=8)
-    ax_gyro.tick_params(labelsize=7); ax_gyro.legend(fontsize=7); ax_gyro.grid(True, alpha=0.4)
-    plt.tight_layout()
-    buf_gyro = fig_to_image_obj(fig_gyro)
-    story.append(Image(buf_gyro, width=avail_w, height=avail_w * 2.2/8))
-    story.append(Paragraph("Figure 2 – Raw gyroscope signals with analysis window delimiters.", caption_style))
+    fig2, ax2 = plt.subplots(figsize=(8, FIG_H))
+    ax2.plot(time_s, gyro_x, label='Gyro X', linewidth=0.9)
+    ax2.plot(time_s, gyro_y, label='Gyro Y', linewidth=0.9)
+    ax2.plot(time_s, gyro_z, label='Gyro Z', linewidth=0.9)
+    ax2.axvline(x=time_s.iloc[start_index], color='k',       linestyle='--', linewidth=0.8, label='Start')
+    ax2.axvline(x=time_s.iloc[end_index],   color='dimgray', linestyle='--', linewidth=0.8, label='End')
+    ax2.set_xlabel('Time (s)', fontsize=8)
+    ax2.set_ylabel('rad/s', fontsize=8)
+    ax2.tick_params(labelsize=7)
+    ax2.legend(fontsize=7, ncol=5, loc='upper right')
+    ax2.grid(True, alpha=0.35)
+    plt.tight_layout(pad=0.5)
+    story.append(Image(fig_to_image_obj(fig2), width=avail_w, height=IMG_H))
+    story.append(Paragraph(
+        "Figure 2 – Raw gyroscope signals (X, Y, Z axes) with analysis window boundaries.",
+        caption_style))
 
-    # ── Figure 3: Total acceleration magnitude (reduced height) ──────
+    # ── Fig 3: Total acceleration magnitude ──────────────────────────
     story.append(Paragraph("3. Total Acceleration Magnitude", section_style))
-    time_filt = results['filtered_data'][0]; Tot_acc_magn = results['Tot_acc_magn']
-    fig_mag, ax_mag = plt.subplots(figsize=(8, 1.8))
-    ax_mag.plot(time_filt, Tot_acc_magn, color='purple', linewidth=0.9)
-    ax_mag.set_xlabel('Time (ms)', fontsize=8); ax_mag.set_ylabel('m/s²', fontsize=8)
-    ax_mag.tick_params(labelsize=7); ax_mag.grid(True, alpha=0.4)
-    plt.tight_layout()
-    buf_mag = fig_to_image_obj(fig_mag)
-    story.append(Image(buf_mag, width=avail_w, height=avail_w * 1.8/8))
-    story.append(Paragraph("Figure 3 – Total acceleration magnitude over the analysis window.", caption_style))
+    fig3, ax3 = plt.subplots(figsize=(8, FIG_H))
+    ax3.plot(time_filt, Tot_acc_magn, color='#7c3aed', linewidth=0.9)
+    ax3.set_xlabel('Time (ms)', fontsize=8)
+    ax3.set_ylabel('m/s²', fontsize=8)
+    ax3.tick_params(labelsize=7)
+    ax3.grid(True, alpha=0.35)
+    plt.tight_layout(pad=0.5)
+    story.append(Image(fig_to_image_obj(fig3), width=avail_w, height=IMG_H))
+    story.append(Paragraph(
+        "Figure 3 – Total acceleration magnitude over the trimmed analysis window.",
+        caption_style))
 
-    # ── Section 4: Step Metrics (page 1) ─────────────────────────────
-    story.append(Paragraph("4. Step Metrics", section_style))
-    (num_peaks, step_time, cv_step_time, Acc_magnit_mean, Gyro_magnit_mean) = results['step_metrics']
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════
+    # PAGE 2 — All metrics
+    # ══════════════════════════════════════════
+
+    # ── Section 4: Step Metrics ──────────────────────────────────────
+    (num_peaks, step_time, cv_step_time,
+     Acc_magnit_mean, Gyro_magnit_mean) = results['step_metrics']
     story.append(metrics_table([
         ("Number of Steps",                        f"{num_peaks:.0f}"),
-        ("Mean Step Time (ms)",                    f"{step_time:.2f}"),
+        ("Mean Step Time",                         f"{step_time:.2f} ms"),
         ("CV Step Time",                           f"{cv_step_time:.4f}"),
-        ("Mean Step Total Acc. Magnitude (m/s²)",  f"{Acc_magnit_mean:.4f}"),
-        ("Mean Step Total Gyro Magnitude (rad/s)", f"{Gyro_magnit_mean:.4f}"),
-    ]))
+        ("Mean Step Total Acc. Magnitude",         f"{Acc_magnit_mean:.4f} m/s²"),
+        ("Mean Step Total Gyro Magnitude",         f"{Gyro_magnit_mean:.4f} rad/s"),
+    ], header="4. Step Metrics"))
 
-    # ── Section 5: Spatiotemporal Metrics (page 1) ───────────────────
-    story.append(Spacer(1, 0.15*cm))
-    story.append(Paragraph("5. Spatiotemporal Metrics", section_style))
+    story.append(Spacer(1, 0.3 * cm))
+
+    # ── Section 5: Spatiotemporal Metrics ───────────────────────────
     m = results['spatiotemporal_metrics']
     walk_ratio_mm            = m['walk_ratio'] * 1000
     normalized_walk_ratio_mm = m['normalized_walk_ratio'] * 1000
     story.append(metrics_table([
-        ("Step Length (m)",                           f"{m['step_length']:.4f}"),
-        ("Gait Speed (m/s)",                          f"{m['gait_speed']:.4f}"),
-        ("Cadence (steps/min)",                       f"{m['cadence']:.2f}"),
-        ("Walk Ratio (mm/(steps/min))",               f"{walk_ratio_mm:.4f}"),
-        ("Normalized Walk Ratio (mm/(steps/min)/m)",  f"{normalized_walk_ratio_mm:.6f}"),
-    ]))
+        ("Step Length",           f"{m['step_length']:.4f} m"),
+        ("Gait Speed",            f"{m['gait_speed']:.4f} m/s"),
+        ("Cadence",               f"{m['cadence']:.2f} steps/min"),
+        ("Walk Ratio",            f"{walk_ratio_mm:.4f} mm/(steps/min)"),
+        ("Normalized Walk Ratio", f"{normalized_walk_ratio_mm:.6f} mm/(steps/min)/m"),
+    ], header="5. Spatiotemporal Metrics"))
 
-    story.append(PageBreak())
+    story.append(Spacer(1, 0.3 * cm))
 
-    # ── Sections 6–8: Gait Metrics per axis (page 2) ─────────────────
-    axis_labels = ["X-axis (Mediolateral)", "Y-axis (Vertical)", "Z-axis (Anteroposterior)"]
-    for idx, (gait_data, axis_label) in enumerate(zip(results['gait_metrics'], axis_labels), start=6):
-        story.append(Paragraph(f"{idx}. Gait Metrics – {axis_label}", section_style))
+    # ── Sections 6–8: Gait Metrics per axis ─────────────────────────
+    axis_labels = [
+        ("6. Gait Metrics – X-axis (Mediolateral)",    results['gait_metrics'][0]),
+        ("7. Gait Metrics – Y-axis (Vertical)",        results['gait_metrics'][1]),
+        ("8. Gait Metrics – Z-axis (Anteroposterior)", results['gait_metrics'][2]),
+    ]
+    for header_text, gait_data in axis_labels:
         rows = [(col, f"{gait_data[col].iloc[0]:.6f}") for col in gait_data.columns]
-        story.append(metrics_table(rows))
-        story.append(Spacer(1, 0.2*cm))
+        story.append(metrics_table(rows, header=header_text))
+        story.append(Spacer(1, 0.3 * cm))
 
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey, spaceBefore=8))
+    # ── Footer ───────────────────────────────────────────────────────
+    story.append(HRFlowable(width="100%", thickness=0.5, color=GREY_GRID, spaceBefore=6))
     story.append(Paragraph(
         "Report generated automatically by the Gait Analysis Application.",
-        ParagraphStyle('Footer', parent=styles['Normal'], fontSize=7, textColor=colors.grey, alignment=TA_CENTER)
-    ))
+        footer_style))
+
     doc.build(story)
     return pdf_path
 

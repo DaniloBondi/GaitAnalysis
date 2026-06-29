@@ -628,17 +628,22 @@ def calculate_spatiotemporal_metrics(acc_ap, time_filt, selected_peaks, subject_
     nyq  = 0.5 * fs
     b, a = butter(2, 0.1 / nyq, btype='high')
     seg_acc_hp = filtfilt(b, a, seg_acc_detrended)
-
+    seg_acc_hp = seg_acc_hp - np.mean(seg_acc_hp)
     vel = np.cumsum(seg_acc_hp) * dt
-    displacement = abs(np.sum(vel) * dt)
-    gait_speed = displacement / time_total_s
+    vel_trend  = np.linspace(vel[0], vel[-1], len(vel))
+    vel_corr   = vel - vel_trend
+    vel_mean_net = (vel[-1] - vel[0]) / time_total_s
+    gait_speed   = abs(vel_mean_net)
+    displacement = gait_speed * time_total_s
 
     print(f"fs={fs}, dt={dt:.4f}s")
     print(f"n campioni segmento: {len(seg_acc)}")
     print(f"time_total tra picchi: {time_total_s:.2f}s")
-    print(f"mean acc_ap grezzo: {np.mean(acc[idx_s:idx_e]):.4f} m/s²")
+    print(f"mean acc_ap dopo calibrazione: {np.mean(seg_acc):.4f} m/s²")
+    print(f"mean acc_ap dopo hp filter:    {np.mean(seg_acc_hp):.4f} m/s²")
     print(f"vel[-1]={vel[-1]:.4f}, vel[0]={vel[0]:.4f}")
     print(f"displacement={displacement:.4f} m")
+    print(f"vel_mean_net={vel_mean_net:.4f} m/s")
     print(f"gait_speed={gait_speed:.4f} m/s")
     
     step_length = gait_speed * mean_step_time            # m

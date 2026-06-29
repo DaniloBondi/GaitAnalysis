@@ -17,6 +17,7 @@ from scipy.signal import (
     find_peaks
 )
 from scipy.fft import fft, fftfreq
+from scipy.signal import butter, filtfilt
 from sklearn.metrics import mutual_info_score
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -371,6 +372,10 @@ def server(input, output, session):
         except Exception as e:
             progress_state.set({"pct": 0, "label": f"Error: {e}", "visible": True})
             ui.notification_show(f"Error during analysis: {str(e)}", type="error")
+        print(f"fs={input.fs()}, dt={1/input.fs():.4f}s")
+        print(f"time_total tra picchi: {(times_ms[idx_e]-times_ms[idx_s])/1000:.2f}s")
+        print(f"vel[-1]={vel[-1]:.4f}, vel[0]={vel[0]:.4f}")
+        print(f"gait_speed raw={abs(vel[-1]-vel[0])/time_total_s:.4f} m/s")
 
     # ── 3. Create PDF report ──────────────────────────────────────────
     @reactive.effect
@@ -603,9 +608,14 @@ def calculate_spatiotemporal_metrics(acc_ap, time_filt, selected_peaks, subject_
             metrics[k] = np.nan
         return metrics
 
-    vel = np.cumsum(seg_acc) * dt
+    seg_acc_detrended = seg_acc - np.mean(seg_acc)
+    nyq  = 0.5 * fs
+    b, a = butter(2, 0.1 / nyq, btype='high')
+    seg_acc_hp = filtfilt(b, a, seg_acc_detrended)
 
-    gait_speed = abs(vel[-1] - vel[0]) / time_total_s   # m/s
+    vel = np.cumsum(seg_acc_hp) * dt
+    displacement = abs(np.sum(vel) * dt)
+    gait_speed = displacement / time_total_s
     step_length = gait_speed * mean_step_time            # m
     walk_ratio            = step_length / cadence        # m/(steps/min)
     normalized_walk_ratio = walk_ratio / subject_height  # 1/(steps/min)
@@ -899,12 +909,6 @@ def generate_pdf_report(results):
         rows = [(col, f"{gait_data[col].iloc[0]:.6f}") for col in gait_data.columns]
         story.append(metrics_table(rows, header=header_text))
         story.append(Spacer(1, 0.3 * cm))
-
-    # ── Footer ───────────────────────────────────────────────────────
-    story.append(HRFlowable(width="100%", thickness=0.5, color=GREY_GRID, spaceBefore=6))
-    story.append(Paragraph(
-        "Report generated automatically by the Gait Analysis Application.",
-        footer_style))
 
     doc.build(story)
     return pdf_path

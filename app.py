@@ -613,10 +613,13 @@ def calculate_spatiotemporal_metrics(acc_ap, time_filt, selected_peaks, subject_
     displacement = abs(np.sum(vel) * dt)
     gait_speed = displacement / time_total_s
 
-    print(f"fs={input.fs()}, dt={1/input.fs():.4f}s")
-    print(f"time_total tra picchi: {(times_ms[idx_e]-times_ms[idx_s])/1000:.2f}s")
+    print(f"fs={fs}, dt={dt:.4f}s")
+    print(f"n campioni segmento: {len(seg_acc)}")
+    print(f"time_total tra picchi: {time_total_s:.2f}s")
+    print(f"mean acc_ap grezzo: {np.mean(acc[idx_s:idx_e]):.4f} m/s²")
     print(f"vel[-1]={vel[-1]:.4f}, vel[0]={vel[0]:.4f}")
-    print(f"gait_speed raw={abs(vel[-1]-vel[0])/time_total_s:.4f} m/s")
+    print(f"displacement={displacement:.4f} m")
+    print(f"gait_speed={gait_speed:.4f} m/s")
     
     step_length = gait_speed * mean_step_time            # m
     walk_ratio            = step_length / cadence        # m/(steps/min)

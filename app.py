@@ -471,7 +471,7 @@ def server(input, output, session):
         if results:
             axes[1].axvline(x=time_s.iloc[start_index], color='k',       linestyle='--', label='Start')
             axes[1].axvline(x=time_s.iloc[end_index],   color='dimgray', linestyle='--', label='End')
-        axes[1].set_title('Gyroscope Signals'); axes[1].set_ylabel('rad/s'); axes[1].legend(); axes[1].grid(True)
+        axes[1].set_title('Gyroscope Signals'); axes[1].set_ylabel('°/s'); axes[1].legend(); axes[1].grid(True)
         if results:
             time_filt = results['filtered_data'][0]; Tot_acc_magn = results['Tot_acc_magn']
             axes[2].plot(time_filt, Tot_acc_magn, label='Total Acceleration Magnitude', color='purple')
@@ -524,7 +524,7 @@ def server(input, output, session):
             f"Mean step time:                                 {step_time:.2f} ms\n"
             f"CV step time:                                   {cv_step_time:.4f}\n"
             f"Mean step total acceleration magnitude:         {Acc_magnit_mean:.4f} m/s²\n"
-            f"Mean step total gyroscope magnitude:            {Gyro_magnit_mean:.4f} rad/s"
+            f"Mean step total gyroscope magnitude:            {Gyro_magnit_mean:.4f} °/s"
         )
 
     @render.text
@@ -864,7 +864,7 @@ def generate_pdf_report(results):
     ax2.axvline(x=time_s.iloc[start_index], color='k',       linestyle='--', linewidth=0.8, label='Start')
     ax2.axvline(x=time_s.iloc[end_index],   color='dimgray', linestyle='--', linewidth=0.8, label='End')
     ax2.set_xlabel('Time (s)', fontsize=8)
-    ax2.set_ylabel('rad/s', fontsize=8)
+    ax2.set_ylabel('°/s', fontsize=8)
     ax2.tick_params(labelsize=7)
     ax2.legend(fontsize=7, ncol=5, loc='upper right')
     ax2.grid(True, alpha=0.35)
@@ -902,7 +902,7 @@ def generate_pdf_report(results):
         ("Mean Step Time (500-600 ms)",                         f"{step_time:.2f} ms"),
         ("CV Step Time (< 3%)",                           f"{cv_step_time:.4f}"),
         ("Mean Step Total Acc. Magnitude",         f"{Acc_magnit_mean:.4f} m/s²"),
-        ("Mean Step Total Gyro Magnitude",         f"{Gyro_magnit_mean:.4f} rad/s"),
+        ("Mean Step Total Gyro Magnitude",         f"{Gyro_magnit_mean:.4f} °/s"),
     ], header="4. Step Metrics"))
 
     story.append(Spacer(1, 0.3 * cm))

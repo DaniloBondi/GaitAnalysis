@@ -899,8 +899,8 @@ def generate_pdf_report(results):
      Acc_magnit_mean, Gyro_magnit_mean) = results['step_metrics']
     story.append(metrics_table([
         ("Number of Steps",                        f"{num_peaks:.0f}"),
-        ("Mean Step Time",                         f"{step_time:.2f} ms"),
-        ("CV Step Time",                           f"{cv_step_time:.4f}"),
+        ("Mean Step Time (500-600 ms)",                         f"{step_time:.2f} ms"),
+        ("CV Step Time (< 3%)",                           f"{cv_step_time:.4f}"),
         ("Mean Step Total Acc. Magnitude",         f"{Acc_magnit_mean:.4f} m/s²"),
         ("Mean Step Total Gyro Magnitude",         f"{Gyro_magnit_mean:.4f} rad/s"),
     ], header="4. Step Metrics"))
@@ -912,11 +912,11 @@ def generate_pdf_report(results):
     walk_ratio_mm            = m['walk_ratio'] * 1000
     normalized_walk_ratio_mm = m['normalized_walk_ratio'] * 1000
     story.append(metrics_table([
-        ("Step length",           f"{m['step_length']:.4f} m"),
+        ("Step length (> 0.50 m)",           f"{m['step_length']:.4f} m"),
         ("Gait speed (> 1 m/s)",            f"{m['gait_speed']:.4f} m/s"),
-        ("Cadence",               f"{m['cadence']:.2f} steps/min"),
-        ("Walking ratio (> 6 mm/(steps/min)",            f"{walk_ratio_mm:.4f} mm/(steps/min)"),
-        ("Normalized walking ratio", f"{normalized_walk_ratio_mm:.6f} mm/(steps/min)/m"),
+        ("Cadence (90-130 steps/min)",               f"{m['cadence']:.2f} steps/min"),
+        ("Walking ratio [> 5.5 mm/(steps/min)]",            f"{walk_ratio_mm:.4f} mm/(steps/min)"),
+        ("Normalized walking ratio [> 3 mm/(steps/min)/m]", f"{normalized_walk_ratio_mm:.6f} mm/(steps/min)/m"),
     ], header="5. Spatiotemporal Metrics"))
 
     story.append(Spacer(1, 0.3 * cm))

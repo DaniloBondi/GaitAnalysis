@@ -372,10 +372,6 @@ def server(input, output, session):
         except Exception as e:
             progress_state.set({"pct": 0, "label": f"Error: {e}", "visible": True})
             ui.notification_show(f"Error during analysis: {str(e)}", type="error")
-        print(f"fs={input.fs()}, dt={1/input.fs():.4f}s")
-        print(f"time_total tra picchi: {(times_ms[idx_e]-times_ms[idx_s])/1000:.2f}s")
-        print(f"vel[-1]={vel[-1]:.4f}, vel[0]={vel[0]:.4f}")
-        print(f"gait_speed raw={abs(vel[-1]-vel[0])/time_total_s:.4f} m/s")
 
     # ── 3. Create PDF report ──────────────────────────────────────────
     @reactive.effect
@@ -616,6 +612,12 @@ def calculate_spatiotemporal_metrics(acc_ap, time_filt, selected_peaks, subject_
     vel = np.cumsum(seg_acc_hp) * dt
     displacement = abs(np.sum(vel) * dt)
     gait_speed = displacement / time_total_s
+
+    print(f"fs={input.fs()}, dt={1/input.fs():.4f}s")
+    print(f"time_total tra picchi: {(times_ms[idx_e]-times_ms[idx_s])/1000:.2f}s")
+    print(f"vel[-1]={vel[-1]:.4f}, vel[0]={vel[0]:.4f}")
+    print(f"gait_speed raw={abs(vel[-1]-vel[0])/time_total_s:.4f} m/s")
+    
     step_length = gait_speed * mean_step_time            # m
     walk_ratio            = step_length / cadence        # m/(steps/min)
     normalized_walk_ratio = walk_ratio / subject_height  # 1/(steps/min)

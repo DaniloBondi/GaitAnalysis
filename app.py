@@ -912,11 +912,11 @@ def generate_pdf_report(results):
     walk_ratio_mm            = m['walk_ratio'] * 1000
     normalized_walk_ratio_mm = m['normalized_walk_ratio'] * 1000
     story.append(metrics_table([
-        ("Step Length",           f"{m['step_length']:.4f} m"),
-        ("Gait Speed",            f"{m['gait_speed']:.4f} m/s"),
+        ("Step length",           f"{m['step_length']:.4f} m"),
+        ("Gait speed (> 1 m/s)",            f"{m['gait_speed']:.4f} m/s"),
         ("Cadence",               f"{m['cadence']:.2f} steps/min"),
-        ("Walk Ratio",            f"{walk_ratio_mm:.4f} mm/(steps/min)"),
-        ("Normalized Walk Ratio", f"{normalized_walk_ratio_mm:.6f} mm/(steps/min)/m"),
+        ("Walking ratio (> 6 mm/(steps/min)",            f"{walk_ratio_mm:.4f} mm/(steps/min)"),
+        ("Normalized walking ratio", f"{normalized_walk_ratio_mm:.6f} mm/(steps/min)/m"),
     ], header="5. Spatiotemporal Metrics"))
 
     story.append(Spacer(1, 0.3 * cm))

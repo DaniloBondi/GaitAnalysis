@@ -329,9 +329,9 @@ def server(input, output, session):
 
             set_progress(75, "Computing spatiotemporal metrics…")
             spatiotemporal = calculate_spatiotemporal_metrics(
-                acc_y_filt, time_filt, selected_peaks, input.height()
+                acc_z_filt, time_filt, selected_peaks, input.height(), input.fs()
             )
-
+            
             set_progress(80, "Smoothing signals…")
             sm_acc_x  = savgol_filter(acc_x_filt, 51, 3)
             sm_acc_y  = savgol_filter(acc_y_filt, 51, 3)
@@ -563,26 +563,53 @@ def format_gait_metrics(gait_data, axis_name):
         output += f"{col}: {gait_data[col].iloc[0]:.6f}\n"
     return output
 
-def calculate_spatiotemporal_metrics(acc_vertical, time_filt, selected_peaks, subject_height):
-    metrics = {}
+def calculate_spatiotemporal_metrics(acc_ap, time_filt, selected_peaks, subject_height, fs):
+    """
+    Stima spaziotemporale con metodo AP (singola integrazione). Riferimento: Sabatini et al. 2005; Trojaniello et al. 2014.
+    acc_ap        : array-like, accelerazione anteroposteriore trimmata (m/s²),
+                    gravità già rimossa. Nel codice principale: acc_z_filt
+                    (con segno già corretto da -df['accZ']).
+    time_filt     : pd.Series, timestamp in millisecondi.
+    selected_peaks: indici dei picchi selezionati (relativi all'array trimmato).
+    subject_height: altezza soggetto in metri (da input.height()).
+    fs            : frequenza di campionamento in Hz (da input.fs()).
+    """
+    metrics  = {}
+    _nan_keys = ("step_length", "gait_speed", "cadence",
+                 "walk_ratio", "normalized_walk_ratio")
+
     if len(selected_peaks) < 2:
-        for k in ("step_length", "gait_speed", "cadence", "walk_ratio", "normalized_walk_ratio"):
+        for k in _nan_keys:
             metrics[k] = np.nan
         return metrics
-    peak_times     = time_filt.iloc[selected_peaks].values
-    step_intervals = np.diff(peak_times) / 1000.0
+
+    times_ms = np.asarray(time_filt,  dtype=float)
+    acc      = np.asarray(acc_ap,     dtype=float)
+    dt       = 1.0 / fs
+
+    peak_times     = times_ms[selected_peaks]
+    step_intervals = np.diff(peak_times) / 1000.0   # secondi, n-1 valori
     mean_step_time = np.mean(step_intervals)
-    cadence        = 60 / mean_step_time
-    vertical_rms   = np.sqrt(np.mean(acc_vertical**2))
-    step_length    = np.clip(
-        0.25 * subject_height * np.sqrt(vertical_rms) * np.sqrt(mean_step_time), 0.2, 1.2
-    )
-    gait_speed            = step_length / mean_step_time
-    # walk_ratio stored in m/(steps/min); displayed *1000 → mm/(steps/min)
-    walk_ratio            = step_length / cadence
-    # normalized_walk_ratio stored in (m/(steps/min))/m = 1/(steps/min)
-    # displayed *1000 → mm/(steps/min)/m
-    normalized_walk_ratio = walk_ratio / subject_height
+    cadence        = 60.0 / mean_step_time           # steps/min
+
+    idx_s = selected_peaks[0]
+    idx_e = selected_peaks[-1]
+
+    seg_acc      = acc[idx_s : idx_e]
+    time_total_s = (times_ms[idx_e] - times_ms[idx_s]) / 1000.0  # secondi
+
+    if len(seg_acc) < 4 or time_total_s <= 0:
+        for k in _nan_keys:
+            metrics[k] = np.nan
+        return metrics
+
+    vel = np.cumsum(seg_acc) * dt
+
+    gait_speed = abs(vel[-1] - vel[0]) / time_total_s   # m/s
+    step_length = gait_speed * mean_step_time            # m
+    walk_ratio            = step_length / cadence        # m/(steps/min)
+    normalized_walk_ratio = walk_ratio / subject_height  # 1/(steps/min)
+
     metrics["step_length"]           = step_length
     metrics["gait_speed"]            = gait_speed
     metrics["cadence"]               = cadence

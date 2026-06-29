@@ -14,9 +14,11 @@ from scipy.signal import (
     butter,
     filtfilt,
     savgol_filter,
-    find_peaks
+    find_peaks,
+    detrend
 )
 from scipy.fft import fft, fftfreq
+from scipy.integrate import cumulative_trapezoid
 from sklearn.metrics import mutual_info_score
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -585,14 +587,9 @@ def format_gait_metrics(gait_data, axis_name):
 
 def calculate_spatiotemporal_metrics(acc_ap, time_filt, selected_peaks, subject_height, fs):
     """
-    Stima spaziotemporale con metodo AP (singola integrazione). Riferimento: Sabatini et al. 2005; Trojaniello et al. 2014.
-    acc_ap        : array-like, accelerazione anteroposteriore trimmata (m/s²),
-                    gravità già rimossa. Nel codice principale: acc_z_filt
-                    (con segno già corretto da -df['accZ']).
-    time_filt     : pd.Series, timestamp in millisecondi.
-    selected_peaks: indici dei picchi selezionati (relativi all'array trimmato).
-    subject_height: altezza soggetto in metri (da input.height()).
-    fs            : frequenza di campionamento in Hz (da input.fs()).
+    Stima spaziotemporale tramite doppia integrazione dell'accelerazione Antero-Posteriore (orizzontale).
+    Ottimizzata per cammini patologici. Utilizza un'integrazione passo-passo con correzione 
+    della deriva (drift) tramite detrending lineare della velocità.
     """
     metrics  = {}
     _nan_keys = ("step_length", "gait_speed", "cadence",
@@ -603,41 +600,58 @@ def calculate_spatiotemporal_metrics(acc_ap, time_filt, selected_peaks, subject_
             metrics[k] = np.nan
         return metrics
 
-    times_ms = np.asarray(time_filt,  dtype=float)
-    acc      = np.asarray(acc_ap,     dtype=float)
+    times_ms = np.asarray(time_filt, dtype=float)
+    acc      = np.asarray(acc_ap, dtype=float)
     dt       = 1.0 / fs
 
+    # Calcolo della cadenza e del tempo di passo medio
     peak_times     = times_ms[selected_peaks]
-    step_intervals = np.diff(peak_times) / 1000.0   # secondi, n-1 valori
+    step_intervals = np.diff(peak_times) / 1000.0   # in secondi
     mean_step_time = np.mean(step_intervals)
-    cadence        = 60.0 / mean_step_time           # steps/min
+    cadence        = 60.0 / mean_step_time          # steps/min
 
-    idx_s = selected_peaks[0]
-    idx_e = selected_peaks[-1]
+    step_lengths = []
 
-    seg_acc      = acc[idx_s : idx_e]
-    time_total_s = (times_ms[idx_e] - times_ms[idx_s]) / 1000.0  # secondi
+    # Iteriamo su ogni singolo passo (da picco a picco)
+    for i in range(len(selected_peaks) - 1):
+        idx_s = selected_peaks[i]
+        idx_e = selected_peaks[i+1]
+        
+        acc_step = acc[idx_s : idx_e]
+        
+        if len(acc_step) < 4:
+            continue
+            
+        # 1. Rimozione del bias (detrending ordine 0) sull'accelerazione del singolo passo
+        acc_step_detrended = acc_step - np.mean(acc_step)
+        
+        # 2. Prima integrazione: calcolo della velocità
+        # v(t) = ∫ a(t) dt
+        vel = cumulative_trapezoid(acc_step_detrended, dx=dt, initial=0)
+        
+        # 3. Correzione della deriva (Drift)
+        # Assumiamo che, ciclicamente, la velocità fluttui ma non cresca all'infinito.
+        # Il detrending lineare rimuove la deriva accumulata durante l'integrazione del singolo passo.
+        vel_detrended = detrend(vel, type='linear')
+        
+        # 4. Seconda integrazione: calcolo dello spostamento (posizione)
+        # p(t) = ∫ v(t) dt
+        pos = cumulative_trapezoid(vel_detrended, dx=dt, initial=0)
+        
+        # 5. La lunghezza del passo è lo spostamento netto totale in questo intervallo
+        step_length_i = abs(pos[-1])
+        step_lengths.append(step_length_i)
 
-    if len(seg_acc) < 4 or time_total_s <= 0:
+    # Se nessun passo è stato calcolato validamente
+    if not step_lengths:
         for k in _nan_keys:
             metrics[k] = np.nan
         return metrics
 
-    seg_acc_detrended = seg_acc - np.mean(seg_acc)
-    vel = np.cumsum(seg_acc_detrended) * dt
-    gait_speed = abs(np.mean(vel))
-    displacement = gait_speed * time_total_s
-
-    print(f"fs={fs}, dt={dt:.4f}s")
-    print(f"n campioni segmento: {len(seg_acc)}")
-    print(f"time_total tra picchi: {time_total_s:.2f}s")
-    print(f"mean acc_detrended: {np.mean(seg_acc_detrended):.6f} m/s²")
-    print(f"vel[-1]={vel[-1]:.4f}, vel[0]={vel[0]:.4f}")
-    print(f"mean(vel)={np.mean(vel):.4f} m/s")
-    print(f"gait_speed={gait_speed:.4f} m/s")
-    print(f"displacement={displacement:.4f} m")
+    # Aggregazione delle metriche finali
+    step_length = np.mean(step_lengths)
+    gait_speed  = step_length / mean_step_time           # v = s / t
     
-    step_length = gait_speed * mean_step_time            # m
     walk_ratio            = step_length / cadence        # m/(steps/min)
     normalized_walk_ratio = walk_ratio / subject_height  # 1/(steps/min)
 
@@ -646,6 +660,7 @@ def calculate_spatiotemporal_metrics(acc_ap, time_filt, selected_peaks, subject_
     metrics["cadence"]               = cadence
     metrics["walk_ratio"]            = walk_ratio
     metrics["normalized_walk_ratio"] = normalized_walk_ratio
+    
     return metrics
 
 def harmonic_ratio(data):

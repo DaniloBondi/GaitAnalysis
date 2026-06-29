@@ -63,6 +63,18 @@ app_ui = ui.page_sidebar(
                 min=0
             ),
             ui.input_numeric(
+                "static_start",
+                "Static Calibration Start (ms)",
+                value=100,
+                min=0
+            ),
+            ui.input_numeric(
+                "static_end",
+                "Static Calibration End (ms)",
+                value=200,
+                min=0
+            ),
+            ui.input_numeric(
                 "fs",
                 "Sampling Frequency (Hz)",
                 value=400,
@@ -265,6 +277,14 @@ def server(input, output, session):
             gyro_x = raw['gyro_x']; gyro_y = raw['gyro_y']; gyro_z = raw['gyro_z']
             fs = input.fs()
 
+            static_mask = (time >= (time.iloc[0] + input.static_start())) & (time <= (time.iloc[0] + input.static_end()))
+            bias_x = acc_x[static_mask].mean()
+            bias_y = acc_y[static_mask].mean()
+            bias_z = acc_z[static_mask].mean()
+            acc_x = acc_x - bias_x
+            acc_y = acc_y - bias_y
+            acc_z = acc_z - bias_z
+            
             set_progress(10, "Trimming data…")
             start_index = np.argmax(time >= input.start_time())
             end_index   = np.argmin(np.abs(time - (np.max(time) - input.end_time())))

@@ -311,7 +311,7 @@ def server(input, output, session):
             if len(selected_peaks) > 1:
                 peak_distances = np.diff(time_filt.iloc[selected_peaks])
                 step_time    = np.mean(peak_distances)
-                cv_step_time = np.std(peak_distances) / np.mean(peak_distances)
+                cv_step_time = (np.std(peak_distances) / np.mean(peak_distances)) * 100
                 stride_freq  = 1000 / (step_time * 2)
             else:
                 step_time = cv_step_time = np.nan; stride_freq = 1.0

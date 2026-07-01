@@ -338,16 +338,25 @@ def server(input, output, session):
                 nyq = 0.5 * fs
                 b, a = butter(order, cutoff / nyq, btype='low')
                 return filtfilt(b, a, data)
-            acc_x_series = pd.Series(butter_lowpass_filter(acc_x_filt, cutoff, fs))
-            acc_y_series = pd.Series(butter_lowpass_filter(acc_y_filt, cutoff, fs))
-            acc_z_series = pd.Series(butter_lowpass_filter(acc_z_filt, cutoff, fs))
+            acc_x_filt_lp = butter_lowpass_filter(acc_x_filt, cutoff, fs)
+            acc_y_filt_lp = butter_lowpass_filter(acc_y_filt, cutoff, fs)
+            acc_z_filt_lp = butter_lowpass_filter(acc_z_filt, cutoff, fs)
+            gyro_x_filt_lp = butter_lowpass_filter(gyro_x_filt, cutoff, fs)
+            gyro_y_filt_lp = butter_lowpass_filter(gyro_y_filt, cutoff, fs)
+            gyro_z_filt_lp = butter_lowpass_filter(gyro_z_filt, cutoff, fs)
 
             set_progress(58, "Computing gait metrics (X axis)…")
-            gait_dataX = calculate_gait_metrics(acc_x_series, fs, stride_freq, 'x')
+            gait_dataX = calculate_gait_metrics(
+                acc_x_filt_lp, gyro_x_filt_lp, fs, stride_freq, 'x'
+            )
             set_progress(65, "Computing gait metrics (Y axis)…")
-            gait_dataY = calculate_gait_metrics(acc_y_series, fs, stride_freq, 'y')
+            gait_dataY = calculate_gait_metrics(
+                acc_y_filt_lp, gyro_y_filt_lp, fs, stride_freq, 'y'
+            )
             set_progress(70, "Computing gait metrics (Z axis)…")
-            gait_dataZ = calculate_gait_metrics(acc_z_series, fs, stride_freq, 'z')
+            gait_dataZ = calculate_gait_metrics(
+                acc_z_filt_lp, gyro_z_filt_lp, fs, stride_freq, 'z'
+            )
 
             set_progress(75, "Computing spatiotemporal metrics…")
             spatiotemporal = calculate_spatiotemporal_metrics(
@@ -364,8 +373,6 @@ def server(input, output, session):
 
             set_progress(86, "Computing Lyapunov exponents…")
             time_series_list = [
-                (acc_z_filt, 'acc_z_filt'), (acc_x_filt, 'acc_x_filt'), (acc_y_filt, 'acc_y_filt'),
-                (gyro_z_filt,'gyro_z_filt'),(gyro_x_filt,'gyro_x_filt'),(gyro_y_filt,'gyro_y_filt'),
                 (sm_acc_z,   'sm_acc_z'),   (sm_acc_x,   'sm_acc_x'),   (sm_acc_y,   'sm_acc_y'),
                 (sm_gyro_z,  'sm_gyro_z'),  (sm_gyro_x,  'sm_gyro_x'),  (sm_gyro_y,  'sm_gyro_y'),
             ]
@@ -378,6 +385,7 @@ def server(input, output, session):
             results = {
                 'raw_data': (time_s, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, start_index, end_index),
                 'filtered_data': (time_filt, acc_x_filt, acc_y_filt, acc_z_filt, gyro_x_filt, gyro_y_filt, gyro_z_filt),
+                'filtered_lp_data': (acc_x_filt_lp, acc_y_filt_lp, acc_z_filt_lp, gyro_x_filt_lp, gyro_y_filt_lp, gyro_z_filt_lp),
                 'smoothed_data': (sm_acc_x, sm_acc_y, sm_acc_z, sm_gyro_x, sm_gyro_y, sm_gyro_z),
                 'step_data':     (smoothed_acc_y, peaks, selected_peaks),
                 'step_metrics':  (num_peaks, step_time, cv_step_time, Acc_magnit_mean, Gyro_magnit_mean),
@@ -667,9 +675,6 @@ def HR_even_odd(data, sampling_rate, stride_freq):
 def root_mean_square(data):
     return np.sqrt(np.mean(data**2))
 
-def coefficient_variation(data):
-    return (np.std(data) / np.mean(data)) * 100
-
 def sparc(data, sampling_rate, omega_c=10):
     N = len(data)
     acc_fft = np.abs(fft(data))[:N//2]
@@ -685,16 +690,22 @@ def ldlj(data, sampling_rate):
     jerk = np.gradient(data, dt)
     return -np.log((len(data) * dt / np.max(np.abs(data))**2) * np.mean(jerk**2))
 
-def calculate_gait_metrics(acc_series, fs, stride_freq, axis):
+def calculate_gait_metrics(acc_data, gyro_data, fs, stride_freq, axis):
     gait_data = pd.DataFrame(index=[0])
-    gait_data[f'HR_{axis}']    = harmonic_ratio(acc_series.values)
-    gait_data[f'HRp_{axis}']   = harmonic_ratio_power(acc_series.values, fs)
-    hreo_val = HR_even_odd(acc_series.values, fs, stride_freq)
-    gait_data[f'HReo_{axis}']  = (1 / hreo_val) if (axis.lower() == 'x' and hreo_val != 0) else hreo_val
-    gait_data[f'RMS_{axis}']   = root_mean_square(acc_series.values)
-    gait_data[f'CV_{axis}']    = coefficient_variation(acc_series.values)
-    gait_data[f'SPARC_{axis}'] = sparc(acc_series.values, fs)
-    gait_data[f'LDLJ_{axis}']  = ldlj(acc_series.values, fs)
+    
+    # Accelerometer metrics
+    hreo_acc = HR_even_odd(acc_data, fs, stride_freq)
+    gait_data[f'HReo_acc_{axis}']  = (1 / hreo_acc) if (axis.lower() == 'x' and hreo_acc != 0) else hreo_acc
+    gait_data[f'RMS_acc_{axis}']   = root_mean_square(acc_data)
+    gait_data[f'SPARC_acc_{axis}'] = sparc(acc_data, fs)
+    gait_data[f'LDLJ_acc_{axis}']  = ldlj(acc_data, fs)
+    
+    # Gyroscope metrics
+    hreo_gyro = HR_even_odd(gyro_data, fs, stride_freq)
+    gait_data[f'HReo_gyr_{axis}']  = (1 / hreo_gyro) if (axis.lower() == 'x' and hreo_gyro != 0) else hreo_gyro
+    gait_data[f'RMS_gyr_{axis}']   = root_mean_square(gyro_data)
+    gait_data[f'SPARC_gyr_{axis}'] = sparc(gyro_data, fs)
+    
     return gait_data
 
 def calculate_lyapunov(time_series, fs, step_time):

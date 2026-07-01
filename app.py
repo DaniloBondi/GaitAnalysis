@@ -585,13 +585,9 @@ def format_gait_metrics(gait_data, axis_name):
         output += f"{col}: {gait_data[col].iloc[0]:.6f}\n"
     return output
 
-import numpy as np
-
 def calculate_spatiotemporal_metrics(acc_vert, time_filt, selected_peaks, subject_height, fs):
     """
-    Stima spaziotemporale tramite Modello di Weinberg (basato sull'escursione dinamica 
-    dell'accelerazione all'interno del passo). Ideale per sensori lombari/bacino 
-    e superiore al pendolo inverso per l'analisi di cammini patologici.
+    Stima spaziotemporale tramite Modello di Weinberg
     """
     metrics = {}
     _nan_keys = ("step_length", "gait_speed", "cadence", "walk_ratio", "normalized_walk_ratio")
@@ -609,8 +605,7 @@ def calculate_spatiotemporal_metrics(acc_vert, time_filt, selected_peaks, subjec
     mean_step_time = np.mean(step_intervals)
     cadence        = 60.0 / mean_step_time          # steps/min
 
-    # K è la costante empirica di calibrazione di Weinberg per accelerazioni in m/s².
-    # 0.41 è il valore medio standard per la camminata.
+    # K è la costante empirica di calibrazione di Weinberg per accelerazioni in m/s² e 0.41 è il valore medio standard per la camminata.
     K = 0.41 
     step_lengths = []
 
@@ -673,7 +668,7 @@ def root_mean_square(data):
     return np.sqrt(np.mean(data**2))
 
 def coefficient_variation(data):
-    return np.std(data) / np.mean(data)
+    return (np.std(data) / np.mean(data)) * 100
 
 def sparc(data, sampling_rate, omega_c=10):
     N = len(data)
@@ -898,11 +893,11 @@ def generate_pdf_report(results):
     (num_peaks, step_time, cv_step_time,
      Acc_magnit_mean, Gyro_magnit_mean) = results['step_metrics']
     story.append(metrics_table([
-        ("Number of Steps",                        f"{num_peaks:.0f}"),
-        ("Mean Step Time (500-600 ms)",                         f"{step_time:.2f} ms"),
-        ("CV Step Time (< 3%)",                           f"{cv_step_time:.4f}"),
-        ("Mean Step Total Acc. Magnitude",         f"{Acc_magnit_mean:.4f} m/s²"),
-        ("Mean Step Total Gyro Magnitude",         f"{Gyro_magnit_mean:.4f} °/s"),
+        ("Number of steps",                        f"{num_peaks:.0f}"),
+        ("Mean step time (500-600 ms)",                         f"{step_time:.2f} ms"),
+        ("CV of step Time (< 3%)",                           f"{cv_step_time:.2f}"),
+        ("Mean step total acceleration magnitude",         f"{Acc_magnit_mean:.2f} m/s²"),
+        ("Mean step total gyroscope magnitude",         f"{Gyro_magnit_mean:.2f} °/s"),
     ], header="4. Step Metrics"))
 
     story.append(Spacer(1, 0.3 * cm))
@@ -912,11 +907,11 @@ def generate_pdf_report(results):
     walk_ratio_mm            = m['walk_ratio'] * 1000
     normalized_walk_ratio_mm = m['normalized_walk_ratio'] * 1000
     story.append(metrics_table([
-        ("Step length (> 0.50 m)",           f"{m['step_length']:.4f} m"),
-        ("Gait speed (> 1 m/s)",            f"{m['gait_speed']:.4f} m/s"),
+        ("Step length (> 0.50 m)",           f"{m['step_length']:.2f} m"),
+        ("Gait speed (> 1 m/s)",            f"{m['gait_speed']:.2f} m/s"),
         ("Cadence (90-130 steps/min)",               f"{m['cadence']:.2f} steps/min"),
-        ("Walking ratio [> 5.5 mm/(steps/min)]",            f"{walk_ratio_mm:.4f} mm/(steps/min)"),
-        ("Normalized walking ratio [> 3 mm/(steps/min)/m]", f"{normalized_walk_ratio_mm:.6f} mm/(steps/min)/m"),
+        ("Walking ratio [> 5.5 mm/(steps/min)]",            f"{walk_ratio_mm:.2f} mm/(steps/min)"),
+        ("Normalized walking ratio [> 3 mm/(steps/min)/m]", f"{normalized_walk_ratio_mm:.2f} mm/(steps/min)/m"),
     ], header="5. Spatiotemporal Metrics"))
 
     story.append(Spacer(1, 0.3 * cm))
@@ -928,7 +923,7 @@ def generate_pdf_report(results):
         ("8. Gait Metrics – Z-axis (Anteroposterior)", results['gait_metrics'][2]),
     ]
     for header_text, gait_data in axis_labels:
-        rows = [(col, f"{gait_data[col].iloc[0]:.6f}") for col in gait_data.columns]
+        rows = [(col, f"{gait_data[col].iloc[0]:.2f}") for col in gait_data.columns]
         story.append(metrics_table(rows, header=header_text))
         story.append(Spacer(1, 0.3 * cm))
 

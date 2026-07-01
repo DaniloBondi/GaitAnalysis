@@ -702,7 +702,7 @@ def calculate_gait_metrics(acc_data, gyro_data, fs, stride_freq, axis):
     
     # Gyroscope metrics
     hreo_gyro = HR_even_odd(gyro_data, fs, stride_freq)
-    gait_data[f'HReo_gyr_{axis}']  = (1 / hreo_gyro) if (axis.lower() == 'x' and hreo_gyro != 0) else hreo_gyro
+    gait_data[f'HReo_gyr_{axis}']  = (1 / hreo_gyro) if (axis.lower() in ['y', 'z'] and hreo_gyro != 0) else hreo_gyro
     gait_data[f'RMS_gyr_{axis}']   = root_mean_square(gyro_data)
     gait_data[f'SPARC_gyr_{axis}'] = sparc(gyro_data, fs)
     
@@ -906,7 +906,7 @@ def generate_pdf_report(results):
     story.append(metrics_table([
         ("Number of steps",                        f"{num_peaks:.0f}"),
         ("Mean step time (500-600 ms)",                         f"{step_time:.2f} ms"),
-        ("CV of step Time (< 3%)",                           f"{cv_step_time:.2f}"),
+        ("CV of step Time (< 3%)",                           f"{cv_step_time:.2f} %"),
         ("Mean step total acceleration magnitude",         f"{Acc_magnit_mean:.2f} m/s²"),
         ("Mean step total gyroscope magnitude",         f"{Gyro_magnit_mean:.2f} °/s"),
     ], header="4. Step Metrics"))

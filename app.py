@@ -284,7 +284,7 @@ def server(input, output, session):
                 gyro_z = df['gyro_z']
                 gyro_x = df['gyro_x']
                 gyro_y = df['gyro_y']
-                time   = df['timeStamp']
+                time   = df['time']
                 time_s = time / 1000
             
             raw_data_loaded.set({

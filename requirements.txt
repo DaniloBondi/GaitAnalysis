@@ -7,4 +7,5 @@ scipy
 scikit-learn
 nolds
 reportlab
+tqdm
 actipy

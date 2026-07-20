@@ -240,21 +240,21 @@ def server(input, output, session):
     @render.ui
     def file_input_ui():
         file_type = input.file_type()
-        if file_type == "csv":
+        if file_type == "GYKOPRO":
             return ui.input_file(
                 "file",
                 "Upload CSV from GykoPro",
                 accept=[".csv"],
                 multiple=False
             )
-        else:  # cwa
+        else:  # AX6
             return ui.input_file(
                 "file",
                 "Upload CSV from AX6",
                 accept=[".csv"],
                 multiple=False
             )
-
+    
     # ── 1. Load file ──────────────────────────────────────────────────
     @reactive.effect
     @reactive.event(input.file)
@@ -265,7 +265,7 @@ def server(input, output, session):
         try:
             file_type = input.file_type()
             
-            if file_type == "csv":
+            if file_type == "GYKOPRO":
                 df = pd.read_csv(file_info[0]["datapath"])
                 acc_z  = -df['accZ']
                 acc_x  =  df['accX']
@@ -283,7 +283,7 @@ def server(input, output, session):
                 acc_y  = df['acc_y']
                 gyro_z = df['gyro_z']
                 gyro_x = df['gyro_x']
-                gyro_y = df['gyro_z']
+                gyro_y = df['gyro_y']
                 time   = df['timeStamp']
                 time_s = time / 1000
             

@@ -8,4 +8,5 @@ scikit-learn
 nolds
 reportlab
 tqdm
+statsmodels
 actipy

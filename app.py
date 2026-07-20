@@ -45,8 +45,8 @@ app_ui = ui.page_sidebar(
             ui.input_radio_buttons(
                 "file_type",
                 "Select File Type",
-                choices={"csv": "Upload CSV file", "cwa": "Upload CWA file"},
-                selected="csv"
+                choices={"GYKOPRO": "Upload CSV from GykoPro", "AX6": "Upload CSV from AX6"},
+                selected="GYKOPRO"
             ),
             class_="sidebar-section"
         ),
@@ -243,15 +243,15 @@ def server(input, output, session):
         if file_type == "csv":
             return ui.input_file(
                 "file",
-                "Upload CSV File",
+                "Upload CSV from GykoPro",
                 accept=[".csv"],
                 multiple=False
             )
         else:  # cwa
             return ui.input_file(
                 "file",
-                "Upload CWA File",
-                accept=[".cwa"],
+                "Upload CSV from AX6",
+                accept=[".csv"],
                 multiple=False
             )
 
@@ -266,7 +266,6 @@ def server(input, output, session):
             file_type = input.file_type()
             
             if file_type == "csv":
-                # CSV file loading
                 df = pd.read_csv(file_info[0]["datapath"])
                 acc_z  = -df['accZ']
                 acc_x  =  df['accX']
@@ -277,37 +276,16 @@ def server(input, output, session):
                 time   = df['timeStamp']
                 time_s = time / 1000
                 
-            else:  # cwa
-                # CWA file loading
-                import actipy
-                data, info = actipy.read_device(file_info[0]["datapath"],
-                                                calibrate_gravity=False,
-                                                detect_nonwear=True)
-                total_duration_days = info.get('DataSpan(days)')
-                data = data.rename(columns={'x': 'acc_y'})
-                data = data.rename(columns={'y': 'acc_x'})
-                data = data.rename(columns={'z': 'acc_z'})
-                data = data.rename(columns={'gyro_x': 'gyro_y_temp'})
-                data = data.rename(columns={'gyro_y': 'gyro_x_temp'})
-                data = data.rename(columns={'gyro_x_temp': 'gyro_x'})
-                data = data.rename(columns={'gyro_y_temp': 'gyro_y'})
-                data['acc_y'] = data['acc_y'] - 1
-                data['acc_y'] = data['acc_y'] * 9.80665
-                data['acc_x'] = data['acc_x'] * 9.80665
-                data['acc_z'] = data['acc_z'] * 9.80665
-                data = data.astype(np.float64)
-                data['time'] = (data.index.astype(np.int64) / 10**6).astype(np.int64)
-                data['time'] = data['time'] - data['time'].min()
-                data['time_s'] = data['time']/1000
-                
-                acc_x = data['acc_x']
-                acc_y = data['acc_y']
-                acc_z = data['acc_z']
-                gyro_x = data['gyro_x']
-                gyro_y = data['gyro_y']
-                gyro_z = data['gyro_z']
-                time = data['time']
-                time_s = data['time_s']
+            else:
+                df = pd.read_csv(file_info[0]["datapath"])
+                acc_z  = df['acc_z']
+                acc_x  = df['acc_x']
+                acc_y  = df['acc_y']
+                gyro_z = df['gyro_z']
+                gyro_x = df['gyro_x']
+                gyro_y = df['gyro_z']
+                time   = df['timeStamp']
+                time_s = time / 1000
             
             raw_data_loaded.set({
                 'time': time, 'time_s': time_s,

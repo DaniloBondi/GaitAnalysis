@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # UPLOAD
-data, info = actipy.read_device("MR2_2.cwa",
+data, info = actipy.read_device("FILE.cwa",  ## insert file name
                                  calibrate_gravity=False,
                                  detect_nonwear=True)
 
